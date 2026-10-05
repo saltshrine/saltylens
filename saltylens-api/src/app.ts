@@ -1,11 +1,13 @@
 import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
+import widgetRoutes from './routes/widgetRoutes.js';
 
 const app: Application = express();
 
 app.use(cors());
 app.use(express.json());
 
+app.use('/api/widgets', widgetRoutes)
 // Base route buat ngetes
 app.get('/', (req: Request, res: Response) => {
     res.json({ message: 'SaltyLens API Core is running 🚀' });
