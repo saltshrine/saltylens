@@ -21,4 +21,23 @@ export class AnalyticsController {
             res.status(500).json({ error: 'Internal server error' });
         }
     }
+
+    static async trackEvents(req: Request, res: Response): Promise<void> {
+        try {
+            const tenantId = 1;
+            const { event_name, payload } = req.body;
+
+            if (!event_name) {
+                res.status(400).json({ error: 'event_name is required' });
+                return;
+            }
+            await AnalyticsModel.trackEvents(tenantId, event_name, payload || {});
+
+            res.status(201).json({ message: 'Event tracked successfully' });
+
+        } catch (error) {
+            console.error('Error tracking event', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    }
 }
