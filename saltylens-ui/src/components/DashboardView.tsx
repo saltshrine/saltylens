@@ -126,6 +126,87 @@ export const DashboardView: React.FC = () => {
         );
     };
 
+    const WidgetCard = ({ widget, onEdit, onDelete }: { widget: any, onEdit: () => void, onDelete: () => void }) => {
+        const [data, setData] = useState<any>(null);
+        const [loading, setLoading] = useState(true);
+
+        useEffect(() => {
+            const fetchAnalytics = async () => {
+                try {
+                    const res = await fetch(`http://localhost:5000/api/analytics/data?eventName=${widget.event_name}&type=${widget.type}`);
+                    const json = await res.json();
+                    if (res.ok) {
+                        setData(json.data);
+                    }
+                } catch (err) {
+                    console.error('Error fetching analytics:', err);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            fetchAnalytics();
+        }, [widget.event_name, widget.type]);
+
+        if (widget.type === 'METRIC') {
+            return (
+                <div className="bg-zinc-900/40 backdrop-blur-xl border border-zinc-800/50 p-5 rounded-xl shadow-sm">
+                    <div className="flex justify-between items-center mb-3">
+                        <span className="text-sm font-medium text-zinc-400">{widget.title}</span>
+                        <WidgetMenu onEdit={onEdit} onDelete={onDelete} />
+                    </div>
+                    <div className="flex items-baseline justify-between">
+                        <span className="text-3xl font-bold tracking-tight text-zinc-100">
+                            {loading ? '...' : (data?.value || 0)}
+                        </span>
+                        <span className="text-xs font-medium text-zinc-500">
+                            Event: {widget.event_name}
+                        </span>
+                    </div>
+                </div>
+            );
+        }
+
+        return (
+            <div className="bg-zinc-900/40 backdrop-blur-xl border border-zinc-800/50 p-5 rounded-xl shadow-sm">
+                <div className="flex justify-between items-center mb-6">
+                    <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-medium text-zinc-200">{widget.title}</h3>
+                        <span className="text-xs text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded-full">{widget.event_name}</span>
+                    </div>
+                    <WidgetMenu onEdit={onEdit} onDelete={onDelete} />
+                </div>
+                <div className="h-[250px] w-full">
+                    {loading ? (
+                        <div className="w-full h-full flex items-center justify-center text-zinc-500 text-sm">Loading data...</div>
+                    ) : data && data.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                            {widget.type === 'LINE' ? (
+                                <LineChart data={data}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#27272a" />
+                                    <XAxis dataKey="timestamp" stroke="#52525b" fontSize={11} tickLine={false} axisLine={false} dy={10} />
+                                    <YAxis stroke="#52525b" fontSize={11} tickLine={false} axisLine={false} dx={-10} />
+                                    <Tooltip contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '8px', fontSize: '12px' }} />
+                                    <Line type="monotone" dataKey="events" stroke="#e4e4e7" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: '#fff' }} />
+                                </LineChart>
+                            ) : (
+                                <BarChart data={data}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#27272a" />
+                                    <XAxis dataKey="timestamp" stroke="#52525b" fontSize={11} tickLine={false} axisLine={false} dy={10} />
+                                    <YAxis stroke="#52525b" fontSize={11} tickLine={false} axisLine={false} dx={-10} />
+                                    <Tooltip contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '8px', fontSize: '12px' }} cursor={{ fill: '#27272a', opacity: 0.4 }} />
+                                    <Bar dataKey="events" fill="#71717a" radius={[2, 2, 0, 0]} />
+                                </BarChart>
+                            )}
+                        </ResponsiveContainer>
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center text-zinc-600 text-sm">No data recorded yet</div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
     // Jalankan fetchWidgets saat komponen pertama kali dimuat
     useEffect(() => {
         fetchWidgets();
@@ -189,26 +270,14 @@ export const DashboardView: React.FC = () => {
                     {metricWidgets.length > 0 && (
                         <section className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                             {metricWidgets.map((widget) => (
-                                <div key={widget.id} className="bg-zinc-900/40 backdrop-blur-xl border border-zinc-800/50 p-5 rounded-xl shadow-sm">
-                                    <div className="flex justify-between items-center mb-6">
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="text-sm font-medium text-zinc-200">{widget.title}</h3>
-                                            <span className="text-xs text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded-full">{widget.event_name}</span>
-                                        </div>
-                                        <WidgetMenu
-                                            onEdit={() => {
-                                                setEditingWidget(widget);
-                                            }}
-                                            onDelete={() => handleDeleteWidget(widget.id)}
-                                        />
-                                    </div>
-                                    <div className="flex items-baseline justify-between">
-                                        <span className="text-3xl font-bold tracking-tight text-zinc-100">0</span>
-                                        <span className="text-xs font-medium text-zinc-500">
-                                            Event: {widget.event_name}
-                                        </span>
-                                    </div>
-                                </div>
+                                <WidgetCard
+                                    key={widget.id}
+                                    widget={widget}
+                                    onEdit={() => {
+                                        setEditingWidget(widget);
+                                    }}
+                                    onDelete={() => handleDeleteWidget(widget.id)}
+                                />
                             ))}
                         </section>
                     )}
@@ -217,41 +286,14 @@ export const DashboardView: React.FC = () => {
                     {chartWidgets.length > 0 && (
                         <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                             {chartWidgets.map((widget) => (
-                                <div key={widget.id} className="bg-zinc-900/40 backdrop-blur-xl border border-zinc-800/50 p-5 rounded-xl shadow-sm">
-                                    <div className="flex justify-between items-center mb-6">
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="text-sm font-medium text-zinc-200">{widget.title}</h3>
-                                            <span className="text-xs text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded-full">{widget.event_name}</span>
-                                        </div>
-                                        <WidgetMenu
-                                            onEdit={() => {
-                                                setEditingWidget(widget);
-                                            }}
-                                            onDelete={() => handleDeleteWidget(widget.id)}
-                                        />
-                                    </div>
-                                    <div className="h-[250px] w-full">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            {widget.type === 'LINE' ? (
-                                                <LineChart data={MOCK_TIME_SERIES}>
-                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#27272a" />
-                                                    <XAxis dataKey="timestamp" stroke="#52525b" fontSize={11} tickLine={false} axisLine={false} dy={10} />
-                                                    <YAxis stroke="#52525b" fontSize={11} tickLine={false} axisLine={false} dx={-10} />
-                                                    <Tooltip contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '8px', fontSize: '12px' }} />
-                                                    <Line type="monotone" dataKey="events" stroke="#e4e4e7" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: '#fff' }} />
-                                                </LineChart>
-                                            ) : (
-                                                <BarChart data={MOCK_TIME_SERIES}>
-                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#27272a" />
-                                                    <XAxis dataKey="timestamp" stroke="#52525b" fontSize={11} tickLine={false} axisLine={false} dy={10} />
-                                                    <YAxis stroke="#52525b" fontSize={11} tickLine={false} axisLine={false} dx={-10} />
-                                                    <Tooltip contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '8px', fontSize: '12px' }} cursor={{ fill: '#27272a', opacity: 0.4 }} />
-                                                    <Bar dataKey="events" fill="#71717a" radius={[2, 2, 0, 0]} />
-                                                </BarChart>
-                                            )}
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
+                                <WidgetCard
+                                    key={widget.id}
+                                    widget={widget}
+                                    onEdit={() => {
+                                        setEditingWidget(widget);
+                                    }}
+                                    onDelete={() => handleDeleteWidget(widget.id)}
+                                />
                             ))}
                         </section>
                     )}
